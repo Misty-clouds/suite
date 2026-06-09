@@ -15,6 +15,9 @@ export type UserDocument = HydratedDocument<User>;
       delete ret._id;
       delete ret.password;
       delete ret.refreshTokenHash;
+      delete ret.resetCodeHash;
+      delete ret.resetCodeExpires;
+      delete ret.resetCodeAttempts;
       return ret;
     },
   },
@@ -49,6 +52,16 @@ export class User {
   // Hash of the currently-valid refresh token; cleared on logout.
   @Prop({ type: String, select: false, default: null })
   refreshTokenHash?: string | null;
+
+  // ─── Password reset (OTP) ───────────────────────────────────────────────────
+  @Prop({ type: String, select: false, default: null })
+  resetCodeHash?: string | null;
+
+  @Prop({ type: Date, select: false, default: null })
+  resetCodeExpires?: Date | null;
+
+  @Prop({ type: Number, select: false, default: 0 })
+  resetCodeAttempts!: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

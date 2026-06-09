@@ -10,17 +10,22 @@ import {
   Search,
   Command,
   CreditCard,
-  MoreVertical,
+  LogOut,
   ChevronLeft,
   ChevronRight,
   PanelLeftOpen,
   X,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import { useAuth } from "./auth/AuthProvider";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { collapsed, mobileOpen, toggleCollapsed, closeMobile } = useSidebar();
+  const { user, logout } = useAuth();
+
+  const displayName =
+    user?.name || user?.email?.split("@")[0] || "Account";
 
   const menuItems = [
     {
@@ -198,26 +203,39 @@ export default function Sidebar() {
               />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-white">Clouds</span>
+              <span className="text-sm font-medium text-white truncate w-32">
+                {displayName}
+              </span>
               <span className="text-xs text-zinc-500 truncate w-32">
-                cloudsuites@gmail.com
+                {user?.email ?? ""}
               </span>
             </div>
-            <MoreVertical
-              className="ml-auto shrink-0 text-zinc-500 group-hover:text-white"
-              size={16}
-            />
+            <button
+              type="button"
+              onClick={() => logout()}
+              title="Sign out"
+              aria-label="Sign out"
+              className="ml-auto shrink-0 text-zinc-500 transition-colors hover:text-white"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition-colors">
+            <button
+              type="button"
+              onClick={() => logout()}
+              title="Sign out"
+              aria-label="Sign out"
+              className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition-colors"
+            >
               <Image
                 src="/assets/images/dummy/img1.jpg"
                 alt="User"
                 fill
                 className="object-cover"
               />
-            </div>
+            </button>
           </div>
         )}
         {(!collapsed || isMobile) && (

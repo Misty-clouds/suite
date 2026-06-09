@@ -39,7 +39,7 @@ COPY --from=deps    --chown=nestjs:nodejs /repo/apps/api/node_modules ./app_modu
 ENV NODE_PATH=/app/node_modules:/app/app_modules
 
 USER nestjs
-EXPOSE 5000
-ENV PORT=5000
+EXPOSE 5050
+ENV PORT=5050
 
 CMD ["node", "dist/main"]

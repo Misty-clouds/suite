@@ -9,23 +9,35 @@ import {
   AuthPasswordField,
   AuthButton,
 } from "@/components/auth/fields";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isPasswordValid = password.length >= 8;
   const isFormValid =
     fullName.trim().length > 0 && isEmailValid && isPasswordValid;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
-    // TODO: call auth API; new accounts go through onboarding first.
-    router.push("/onboarding");
+    if (!isFormValid || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await register(fullName.trim(), email, password);
+      // New accounts go through onboarding first.
+      router.replace("/onboarding");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create account");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -59,9 +71,12 @@ export default function RegisterPage() {
             onChange={setPassword}
             autoComplete="new-password"
           />
+          {error && <p className="text-[12px] text-[#FF8080]">{error}</p>}
         </div>
 
-        <AuthButton disabled={!isFormValid}>Sign up</AuthButton>
+        <AuthButton disabled={!isFormValid || submitting}>
+          {submitting ? "Creating account…" : "Sign up"}
+        </AuthButton>
 
         <p className="flex gap-1 text-[14px] leading-[1.1] text-[#6e7b82]">
           Already have an account?

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -6,7 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomUUID, timingSafeEqual } from 'crypto';
+import { createHash, randomInt, randomUUID, timingSafeEqual } from 'crypto';
+import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserDocument } from '../users/schemas/user.schema';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +25,8 @@ export interface AuthResult extends AuthTokens {
 }
 
 const SALT_ROUNDS = 12;
+const RESET_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const RESET_MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
@@ -30,6 +34,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
@@ -97,6 +102,43 @@ export class AuthService {
       throw new UnauthorizedException('User no longer exists');
     }
     return user.toJSON();
+  }
+
+  // ─── Password reset (OTP) ─────────────────────────────────────────────────────
+
+  /** Emails a 6-digit reset code. Always succeeds so it can't reveal whether an
+   *  account exists for the given email. */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return;
+
+    const code = this.generateResetCode();
+    const hash = await bcrypt.hash(code, SALT_ROUNDS);
+    await this.usersService.setResetCode(
+      user.id as string,
+      hash,
+      new Date(Date.now() + RESET_CODE_TTL_MS),
+    );
+    await this.mailService.sendPasswordResetCode(user.email, code);
+  }
+
+  /** Checks a code without consuming it (lets the UI advance to the new-password
+   *  step). Throws on an invalid/expired code. */
+  async verifyResetCode(email: string, code: string): Promise<void> {
+    await this.validateResetCode(email, code);
+  }
+
+  async resetPassword(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.validateResetCode(email, code);
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.usersService.updatePasswordAndClearReset(
+      user.id as string,
+      passwordHash,
+    );
   }
 
   // ─── Internals ──────────────────────────────────────────────────────────────
@@ -168,5 +210,44 @@ export class AuthService {
     return (
       this.config.get<string>('JWT_REFRESH_SECRET') ?? 'dev-refresh-secret'
     );
+  }
+
+  private generateResetCode(): string {
+    return String(randomInt(0, 1_000_000)).padStart(6, '0');
+  }
+
+  /** Loads the user and validates the supplied reset code (expiry, attempt
+   *  limit, match). Uses a single generic error so it can't be used to probe
+   *  which emails exist. */
+  private async validateResetCode(
+    email: string,
+    code: string,
+  ): Promise<UserDocument> {
+    const invalid = new BadRequestException('Invalid or expired code');
+
+    const user = await this.usersService.findByEmailWithResetCode(email);
+    if (!user || !user.resetCodeHash || !user.resetCodeExpires) {
+      throw invalid;
+    }
+
+    if (user.resetCodeExpires.getTime() < Date.now()) {
+      await this.usersService.clearResetCode(user.id as string);
+      throw invalid;
+    }
+
+    if (user.resetCodeAttempts >= RESET_MAX_ATTEMPTS) {
+      await this.usersService.clearResetCode(user.id as string);
+      throw new BadRequestException(
+        'Too many attempts. Please request a new code.',
+      );
+    }
+
+    const matches = await bcrypt.compare(code, user.resetCodeHash);
+    if (!matches) {
+      await this.usersService.incrementResetAttempts(user.id as string);
+      throw invalid;
+    }
+
+    return user;
   }
 }

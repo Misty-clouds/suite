@@ -9,6 +9,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { UsersModule } from './users/users.module';
+import { ClientsModule } from './clients/clients.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { BudgetsModule } from './budgets/budgets.module';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { UsersModule } from './users/users.module';
     }),
     UsersModule,
     AuthModule,
+    ClientsModule,
+    InvoicesModule,
+    BudgetsModule,
   ],
   controllers: [AppController],
   providers: [

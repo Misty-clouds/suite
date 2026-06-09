@@ -46,4 +46,56 @@ export class UsersService {
       .findByIdAndUpdate(id, { refreshTokenHash: hash })
       .exec();
   }
+
+  // ─── Password reset (OTP) ─────────────────────────────────────────────────────
+
+  /** Includes the normally-hidden reset-code fields. */
+  findByEmailWithResetCode(email: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({ email: email.toLowerCase() })
+      .select('+resetCodeHash +resetCodeExpires +resetCodeAttempts')
+      .exec();
+  }
+
+  async setResetCode(id: string, hash: string, expires: Date): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(id, {
+        resetCodeHash: hash,
+        resetCodeExpires: expires,
+        resetCodeAttempts: 0,
+      })
+      .exec();
+  }
+
+  async clearResetCode(id: string): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(id, {
+        resetCodeHash: null,
+        resetCodeExpires: null,
+        resetCodeAttempts: 0,
+      })
+      .exec();
+  }
+
+  async incrementResetAttempts(id: string): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(id, { $inc: { resetCodeAttempts: 1 } })
+      .exec();
+  }
+
+  /** Sets a new password, clears the reset code, and revokes existing sessions. */
+  async updatePasswordAndClearReset(
+    id: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(id, {
+        password: passwordHash,
+        resetCodeHash: null,
+        resetCodeExpires: null,
+        resetCodeAttempts: 0,
+        refreshTokenHash: null,
+      })
+      .exec();
+  }
 }

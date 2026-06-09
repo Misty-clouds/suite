@@ -10,7 +10,7 @@ Turborepo + pnpm workspace monorepo with 4 deployable apps and 5 shared packages
 |-----|------|-----------|------|--------|
 | Web (dashboard) | `apps/web` | Next.js 16.1.6 | 3001 | `app.suite.cloudstech.org` |
 | Admin (super-admin) | `apps/admin` | Next.js 16.2.1 | 3002 | `cp.suite.cloudstech.org` |
-| API | `apps/api` | NestJS 11 | 5000 | `api.suite.cloudstech.org` |
+| API | `apps/api` | NestJS 11 | 5050 | `api.suite.cloudstech.org` |
 | Mobile | `apps/mobile` | Flutter | — | — |
 
 **IMPORTANT:** `apps/admin` uses Next.js 16.2.x which has breaking changes vs 16.1.x. Do NOT upgrade `apps/web` to 16.2.x without testing. Do NOT force all apps to the same Next.js version.

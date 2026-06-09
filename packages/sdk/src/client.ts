@@ -4,8 +4,8 @@ import type { ApiResponse, PaginatedResponse, ApiError } from "@suite/types";
 
 const DEFAULT_BASE_URL =
   typeof process !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000")
-    : "http://localhost:5000";
+    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5050")
+    : "http://localhost:5050";
 
 export interface ClientConfig {
   baseUrl?: string;

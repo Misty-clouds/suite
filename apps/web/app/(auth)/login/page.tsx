@@ -9,20 +9,32 @@ import {
   AuthPasswordField,
   AuthButton,
 } from "@/components/auth/fields";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isEmailValid && password.length > 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
-    // TODO: call auth API; on success, enter the dashboard.
-    router.push("/");
+    if (!isFormValid || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await login(email, password);
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(next || "/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sign in");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -52,9 +64,14 @@ export default function LoginPage() {
           >
             Forgot password?
           </Link>
+          {error && (
+            <p className="text-[12px] text-[#FF8080]">{error}</p>
+          )}
         </div>
 
-        <AuthButton disabled={!isFormValid}>Sign in</AuthButton>
+        <AuthButton disabled={!isFormValid || submitting}>
+          {submitting ? "Signing in…" : "Sign in"}
+        </AuthButton>
 
         <p className="flex gap-1 text-[14px] leading-[1.1] text-[#6e7b82]">
           Don&apos;t have an account?

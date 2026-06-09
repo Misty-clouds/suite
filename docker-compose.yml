@@ -49,10 +49,10 @@ services:
       context: .
       dockerfile: infra/docker/Dockerfile.api
     expose:
-      - "5000"
+      - "5050"
     environment:
       - NODE_ENV=production
-      - PORT=5000
+      - PORT=5050
       # Points the API at the bundled MongoDB service (overrides apps/api/.env).
       - MONGODB_URI=mongodb://mongo:27017/${MONGO_DB:-suite}
     env_file:

@@ -3,6 +3,7 @@
 import Sidebar from "../../components/Sidebar";
 import AiAssistant from "../../components/AiAssistant";
 import { SidebarProvider, useSidebar } from "../../components/SidebarContext";
+import { RequireAuth } from "../../components/auth/RequireAuth";
 import { ReactNode } from "react";
 
 function DashboardContent({ children }: { children: ReactNode }) {
@@ -24,8 +25,10 @@ function DashboardContent({ children }: { children: ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider>
-      <DashboardContent>{children}</DashboardContent>
-    </SidebarProvider>
+    <RequireAuth>
+      <SidebarProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </SidebarProvider>
+    </RequireAuth>
   );
 }
