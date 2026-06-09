@@ -288,7 +288,7 @@ export default function TaskModal({ isOpen, onClose }: TaskModalProps) {
               <div>
                 <p className="text-zinc-300 text-sm">
                   <span className="font-medium text-white">Giwa Abdullahi</span>{" "}
-                  added this card to "To do"
+                  added this card to &quot;To do&quot;
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
                   Sep 2, 2025, 11:06 PM
@@ -319,7 +319,7 @@ export default function TaskModal({ isOpen, onClose }: TaskModalProps) {
               <div>
                 <p className="text-zinc-300 text-sm">
                   <span className="font-medium text-white">Giwa Abdullahi</span>{" "}
-                  added this card to "To do"
+                  added this card to &quot;To do&quot;
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
                   Sep 2, 2025, 11:06 PM

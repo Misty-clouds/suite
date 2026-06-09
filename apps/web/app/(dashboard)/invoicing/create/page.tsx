@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronDown,
@@ -14,11 +15,23 @@ import {
   Search,
   Trash2,
   Percent,
-  Calendar,
+  Loader2,
 } from "lucide-react";
+import type { Client, CreateInvoiceInput } from "@suite/types";
 import AddClientModal from "@/components/AddClientModal";
+import { clientsApi } from "@/lib/clients-api";
+import { invoicesApi } from "@/lib/invoices-api";
+
+interface DraftItem {
+  id: number;
+  name: string;
+  unit: string;
+  price: string;
+}
 
 export default function CreateInvoicePage() {
+  const router = useRouter();
+
   const [openSections, setOpenSections] = useState({
     client: true,
     details: true,
@@ -27,39 +40,59 @@ export default function CreateInvoicePage() {
 
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<{
-    name: string;
-    email: string;
-  } | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const [projectName, setProjectName] = useState("");
   const [dateIssued, setDateIssued] = useState("");
   const [dateDue, setDateDue] = useState("");
-  const [items, setItems] = useState([
+  const [taxRate, setTaxRate] = useState(0);
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<DraftItem[]>([
     { id: 1, name: "", unit: "", price: "" },
   ]);
 
+  const [saving, setSaving] = useState<null | "draft" | "send">(null);
+  const [error, setError] = useState<string | null>(null);
+
   const hasContent = projectName.length > 0 || items[0].name.length > 0;
+
+  // ── Load clients for the picker ─────────────────────────────────────────────
+  const loadClients = useCallback(async () => {
+    try {
+      setClients(await clientsApi.list());
+    } catch {
+      // Non-fatal — the picker will simply be empty.
+    }
+  }, []);
+
+  useEffect(() => {
+    // One-time fetch on mount to populate the client picker.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadClients();
+  }, [loadClients]);
+
+  const filteredClients = clients.filter((c) =>
+    `${c.name} ${c.email ?? ""}`
+      .toLowerCase()
+      .includes(clientSearch.trim().toLowerCase()),
+  );
 
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const addItem = () => {
+  const addItem = () =>
     setItems([...items, { id: Date.now(), name: "", unit: "", price: "" }]);
-  };
-
-  const removeItem = (id: number) => {
+  const removeItem = (id: number) =>
     setItems(items.filter((item) => item.id !== id));
-  };
-
-  const updateItem = (id: number, field: string, value: string) => {
+  const updateItem = (id: number, field: keyof DraftItem, value: string) =>
     setItems(
       items.map((item) =>
         item.id === id ? { ...item, [field]: value } : item,
       ),
     );
-  };
 
   const formatDateForPreview = (value: string) => {
     if (!value) return "";
@@ -75,34 +108,73 @@ export default function CreateInvoicePage() {
   };
 
   const parseNumber = (value: string) => {
-    const normalized = value.replace(/,/g, "").trim();
-    if (!normalized) return 0;
-    const n = Number.parseFloat(normalized);
+    const n = Number.parseFloat(value.replace(/,/g, "").trim());
     return Number.isFinite(n) ? n : 0;
   };
 
-  const formatMoney = (value: number) => {
-    return new Intl.NumberFormat(undefined, {
+  const formatMoney = (value: number) =>
+    new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: "USD",
     }).format(value);
-  };
 
   const previewLineItems = items.map((item) => {
     const quantity = parseNumber(item.unit);
     const amount = parseNumber(item.price);
-    return {
-      ...item,
-      quantity,
-      amount,
-      total: quantity * amount,
-    };
+    return { ...item, quantity, amount, total: quantity * amount };
   });
 
-  const previewSubtotal = previewLineItems.reduce(
-    (sum, item) => sum + item.total,
-    0,
-  );
+  const previewSubtotal = previewLineItems.reduce((s, i) => s + i.total, 0);
+  const previewTax = (previewSubtotal * taxRate) / 100;
+  const previewTotal = previewSubtotal + previewTax;
+
+  // ── Save / send ─────────────────────────────────────────────────────────────
+  const buildPayload = (): CreateInvoiceInput | null => {
+    if (!selectedClient) {
+      setError("Please select a client");
+      return null;
+    }
+    const cleanItems = items
+      .filter((i) => i.name.trim() && parseNumber(i.price) > 0)
+      .map((i) => ({
+        name: i.name.trim(),
+        quantity: parseNumber(i.unit) || 1,
+        unitPrice: parseNumber(i.price),
+      }));
+    if (cleanItems.length === 0) {
+      setError("Add at least one item with a name and price");
+      return null;
+    }
+    return {
+      client: {
+        clientId: selectedClient.id,
+        name: selectedClient.name,
+        email: selectedClient.email,
+        address: selectedClient.address,
+      },
+      projectName: projectName.trim() || undefined,
+      notes: notes.trim() || undefined,
+      issueDate: dateIssued || undefined,
+      dueDate: dateDue || undefined,
+      taxRate,
+      items: cleanItems,
+    };
+  };
+
+  const handleSave = async (mode: "draft" | "send") => {
+    setError(null);
+    const payload = buildPayload();
+    if (!payload) return;
+    setSaving(mode);
+    try {
+      const invoice = await invoicesApi.create(payload);
+      if (mode === "send") await invoicesApi.send(invoice.id);
+      router.push("/invoicing");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save invoice");
+      setSaving(null);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col bg-[#0A0A0A]">
@@ -125,11 +197,29 @@ export default function CreateInvoicePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 rounded-lg border border-[#272727] bg-transparent px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#161616]">
-            <Download size={15} /> Save as draft
+          <button
+            onClick={() => handleSave("draft")}
+            disabled={saving !== null}
+            className="flex items-center gap-2 rounded-lg border border-[#272727] bg-transparent px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#161616] disabled:opacity-60"
+          >
+            {saving === "draft" ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            Save as draft
           </button>
-          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-700">
-            <Send size={15} /> Send invoice
+          <button
+            onClick={() => handleSave("send")}
+            disabled={saving !== null}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+          >
+            {saving === "send" ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Send size={15} />
+            )}
+            Send invoice
           </button>
         </div>
       </header>
@@ -138,6 +228,12 @@ export default function CreateInvoicePage() {
       <div className="flex flex-1 overflow-hidden p-8 gap-8">
         {/* Left Column - Form */}
         <div className="w-112.5 shrink-0 overflow-y-auto scrollbar-hide pr-2 flex flex-col gap-5">
+          {error && (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-[13px] text-rose-400">
+              {error}
+            </div>
+          )}
+
           {/* Client Details */}
           <div className="rounded-xl border border-[#272727] bg-[#121212]">
             <button
@@ -161,7 +257,7 @@ export default function CreateInvoicePage() {
                       onClick={() => setIsClientDropdownOpen(true)}
                       className="flex items-center gap-1.5 rounded-lg border border-[#272727] px-2.5 py-1 text-xs text-white hover:bg-[#1C1C1C] transition-colors"
                     >
-                      <Plus size={12} /> Add client
+                      <Plus size={12} /> Select client
                     </button>
                   )}
                 </div>
@@ -173,14 +269,14 @@ export default function CreateInvoicePage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-orange-400 via-pink-500 to-purple-500 text-white font-bold text-[10px]">
-                        {selectedClient?.name ? selectedClient.name[0] : ""}
+                        {selectedClient?.name?.[0] ?? "?"}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[13px] font-medium text-white">
-                          {selectedClient?.name || "Neotech Solutions"}
+                          {selectedClient?.name || "No client selected"}
                         </span>
                         <span className="text-[12px] text-zinc-500">
-                          {selectedClient?.email || "neotechgmail.com"}
+                          {selectedClient?.email || "Tap to choose a client"}
                         </span>
                       </div>
                     </div>
@@ -206,46 +302,48 @@ export default function CreateInvoicePage() {
                       />
                       <input
                         type="text"
+                        value={clientSearch}
+                        onChange={(e) => setClientSearch(e.target.value)}
                         placeholder="Search clients"
-                        className="w-full rounded-lg bg-[#0A0A0A] border border-[#272727] pl-9 pr-3 py-2 text-[13px] text-white placeholder:text-zinc-00 focus:outline-none focus:border-zinc-500 transition-colors"
+                        className="w-full rounded-lg bg-[#0A0A0A] border border-[#272727] pl-9 pr-3 py-2 text-[13px] text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
                       />
                     </div>
-                    <div className="max-h-55 overflow-y-auto scrollbar-thin scrollbar-thumb-[#272727] bg-[#161616]">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          onClick={() => {
-                            setIsClientDropdownOpen(false);
-                            setSelectedClient({
-                              name: "Neotech solutions",
-                              email: "ntc@gmail.com",
-                            });
-                          }}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#202020] cursor-pointer transition-colors border-b border-[#272727]/50 relative"
-                        >
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-orange-400 via-pink-500 to-purple-500 text-white font-bold text-[10px]">
-                            N
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-medium text-white">
-                              Neotech solutions
-                            </span>
-                            <span className="text-[12px] text-zinc-500">
-                              ntc@gmail.com
-                            </span>
-                          </div>
-                          {i === 2 && (
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-zinc-600 rounded-full" />
-                          )}
+                    <div className="max-h-55 overflow-y-auto bg-[#161616]">
+                      {filteredClients.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-[12px] text-zinc-500">
+                          No clients found. Add a new one above.
                         </div>
-                      ))}
+                      ) : (
+                        filteredClients.map((client) => (
+                          <div
+                            key={client.id}
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setIsClientDropdownOpen(false);
+                            }}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-[#202020] cursor-pointer transition-colors border-b border-[#272727]/50"
+                          >
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-orange-400 via-pink-500 to-purple-500 text-white font-bold text-[10px]">
+                              {client.name[0]}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[13px] font-medium text-white">
+                                {client.name}
+                              </span>
+                              <span className="text-[12px] text-zinc-500">
+                                {client.email || "—"}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
 
-                {!isClientDropdownOpen && (
+                {!isClientDropdownOpen && selectedClient?.address && (
                   <div className="mt-4 flex items-center gap-2 text-[13px] text-zinc-400 px-1">
-                    <MapPin size={14} /> Plot 678, Dalas, Texas.
+                    <MapPin size={14} /> {selectedClient.address}
                   </div>
                 )}
               </div>
@@ -285,27 +383,23 @@ export default function CreateInvoicePage() {
                     <label className="mb-2 block text-[13px] text-zinc-400">
                       Date issued
                     </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={dateIssued}
-                        onChange={(e) => setDateIssued(e.target.value)}
-                        className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
-                      />
-                    </div>
+                    <input
+                      type="date"
+                      value={dateIssued}
+                      onChange={(e) => setDateIssued(e.target.value)}
+                      className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
+                    />
                   </div>
                   <div className="flex-1">
                     <label className="mb-2 block text-[13px] text-zinc-400">
                       Date due
                     </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={dateDue}
-                        onChange={(e) => setDateDue(e.target.value)}
-                        className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
-                      />
-                    </div>
+                    <input
+                      type="date"
+                      value={dateDue}
+                      onChange={(e) => setDateDue(e.target.value)}
+                      className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
+                    />
                   </div>
                 </div>
                 <div>
@@ -313,9 +407,14 @@ export default function CreateInvoicePage() {
                     GST status
                   </label>
                   <div className="relative">
-                    <select className="w-full appearance-none rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors">
-                      <option>No GST</option>
-                      <option>GST 7%</option>
+                    <select
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      className="w-full appearance-none rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors"
+                    >
+                      <option value={0}>No GST</option>
+                      <option value={7}>GST 7%</option>
+                      <option value={18}>GST 18%</option>
                     </select>
                     <ChevronDown
                       size={14}
@@ -355,17 +454,15 @@ export default function CreateInvoicePage() {
                         <label className="mb-2 block text-[13px] text-zinc-400">
                           Unit
                         </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={item.unit}
-                            onChange={(e) =>
-                              updateItem(item.id, "unit", e.target.value)
-                            }
-                            placeholder="5"
-                            className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
-                          />
-                        </div>
+                        <input
+                          type="number"
+                          value={item.unit}
+                          onChange={(e) =>
+                            updateItem(item.id, "unit", e.target.value)
+                          }
+                          placeholder="5"
+                          className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder:text-[#555]"
+                        />
                       </div>
                       <div className="flex-1">
                         <label className="mb-2 block text-[13px] text-zinc-400">
@@ -424,9 +521,11 @@ export default function CreateInvoicePage() {
                   Note/Special instruction (Optional)
                 </label>
                 <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                   className="w-full rounded-lg border border-[#272727] bg-[#161616] px-3 py-2 text-[13px] text-white focus:outline-none focus:border-zinc-500 transition-colors min-h-30 resize-none"
                   placeholder="Type here"
-                ></textarea>
+                />
               </div>
             )}
           </div>
@@ -436,9 +535,7 @@ export default function CreateInvoicePage() {
         <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
           <h3 className="text-[14px] font-medium text-white mb-4">Preview</h3>
 
-          {/* Preview Container */}
           <div className="flex-1 rounded-2xl border border-[#161616] bg-[#161616] relative overflow-hidden flex flex-col">
-            <div className="pointer-events-none absolute inset-0" />
             {!hasContent ? (
               <>
                 <div className="flex flex-1 flex-col items-center justify-center text-center p-8">
@@ -458,9 +555,6 @@ export default function CreateInvoicePage() {
                     height={30}
                     alt="Logo"
                   />
-                  <div className="mt-2 text-[11px] text-zinc-500">
-                    cloudtechnologysolutions@gmail.com
-                  </div>
                 </div>
               </>
             ) : (
@@ -475,30 +569,24 @@ export default function CreateInvoicePage() {
                         Billed To:
                       </div>
                       <div className="text-[14px] font-medium text-white mb-0.5">
-                        {selectedClient?.name || "Neotech solutions"}
+                        {selectedClient?.name || "—"}
                       </div>
                       <div className="text-[12px] text-zinc-400">
-                        124, Bakersville, United Kingdom
+                        {selectedClient?.address || "—"}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] text-zinc-500 mb-0.5">
-                        Invoice No.
-                      </div>
-                      <div className="text-[14px] font-semibold text-white mb-6">
-                        202501
-                      </div>
-                      <div className="text-[11px] text-zinc-500 mb-0.5">
                         Issued on
                       </div>
                       <div className="text-[11px] text-white mb-4">
-                        {formatDateForPreview(dateIssued) || "—"}.
+                        {formatDateForPreview(dateIssued) || "—"}
                       </div>
                       <div className="text-[11px] text-zinc-500 mb-0.5">
                         Payment Due
                       </div>
                       <div className="text-[11px] text-white">
-                        {formatDateForPreview(dateDue) || "—"}.
+                        {formatDateForPreview(dateDue) || "—"}
                       </div>
                     </div>
                   </div>
@@ -511,7 +599,9 @@ export default function CreateInvoicePage() {
                         <th className="text-left font-medium pb-4">
                           Description
                         </th>
-                        <th className="text-right font-medium pb-4 w-16">Qty.</th>
+                        <th className="text-right font-medium pb-4 w-16">
+                          Qty.
+                        </th>
                         <th className="text-right font-medium pb-4 w-28">
                           Amount
                         </th>
@@ -521,7 +611,7 @@ export default function CreateInvoicePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {previewLineItems.map((item, i) => (
+                      {previewLineItems.map((item) => (
                         <tr
                           key={item.id}
                           className="transition-colors hover:bg-white/5"
@@ -536,14 +626,14 @@ export default function CreateInvoicePage() {
                             {item.price ? formatMoney(item.amount) : "—"}
                           </td>
                           <td className="py-5 text-right text-zinc-300">
-                            {item.unit && item.price ? formatMoney(item.total) : "—"}
+                            {item.unit && item.price
+                              ? formatMoney(item.total)
+                              : "—"}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-
-                  <div className="mt-8 h-px w-full" />
 
                   <div className="mt-8 rounded-xl bg-[#222222] px-7 py-6">
                     <div className="space-y-5 text-[13px]">
@@ -554,39 +644,20 @@ export default function CreateInvoicePage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">Tax (10%)</span>
-                        <span className="text-white">{formatMoney(0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Discount</span>
-                        <span className="text-white">{formatMoney(0)}</span>
+                        <span className="text-zinc-400">Tax ({taxRate}%)</span>
+                        <span className="text-white">
+                          {formatMoney(previewTax)}
+                        </span>
                       </div>
                       <div className="flex justify-between pt-4 border-t border-[#272727] font-medium">
                         <span className="text-white">Total</span>
                         <span className="text-white">
-                          {formatMoney(previewSubtotal)}
+                          {formatMoney(previewTotal)}
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="mt-20 text-[11px] text-zinc-500 space-y-2">
-                  <div className="text-zinc-400">Notes</div>
-                  <ul className="list-disc pl-4 space-y-1.5 opacity-80 leading-relaxed">
-                    <li>
-                      GST appears as a separate line item showing the tax amount
-                      applied to the subtotal.
-                    </li>
-                    <li>
-                      It&apos;s usually shown as a percentage, e.g. GST (7%), GST
-                      (18%), etc.
-                    </li>
-                    <li>The invoice total = Subtotal + GST amount</li>
-                  </ul>
-                </div>
-
-                <div className="mt-10 h-px w-full bg-gradient-to-r from-transparent via-[#272727] to-transparent" />
 
                 <div className="mt-14">
                   <Image
@@ -595,9 +666,6 @@ export default function CreateInvoicePage() {
                     height={32}
                     alt="Logo"
                   />
-                  <div className="mt-2 text-[10px] text-zinc-500">
-                    cloudtechnologysolutions@gmail.com
-                  </div>
                 </div>
               </div>
             )}
@@ -608,6 +676,10 @@ export default function CreateInvoicePage() {
       <AddClientModal
         isOpen={isAddClientModalOpen}
         onClose={() => setIsAddClientModalOpen(false)}
+        onCreated={(client) => {
+          setClients((prev) => [client, ...prev]);
+          setSelectedClient(client);
+        }}
       />
     </div>
   );

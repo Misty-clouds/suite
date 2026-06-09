@@ -15,9 +15,16 @@ import {
 
 type TaxStep = 1 | 2 | 3 | 4 | 5;
 
+type TaxFormData = Record<string, string>;
+
+interface StepProps {
+  formData: TaxFormData;
+  setFormData: React.Dispatch<React.SetStateAction<TaxFormData>>;
+}
+
 export function TaxTab() {
   const [step, setStep] = useState<TaxStep>(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TaxFormData>({
     // Step 1: Business
     businessName: "Cloudstech LTD",
     rcNumber: "",
@@ -151,13 +158,13 @@ export function TaxTab() {
 
 // ─── Step Components ──────────────────────────────────────────────────────────
 
-function Step1({ formData, setFormData }: any) {
+function Step1({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
         <h2 className="text-xl font-medium text-app-text-main">Tell us about your business</h2>
         <p className="text-app-text-muted text-sm">
-          This determines which tax obligations apply to you and at what rates. We've pre-filled what we know from your account.
+          This determines which tax obligations apply to you and at what rates. We&apos;ve pre-filled what we know from your account.
         </p>
       </div>
 
@@ -249,13 +256,13 @@ function Step1({ formData, setFormData }: any) {
   );
 }
 
-function Step2({ formData, setFormData }: any) {
+function Step2({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
         <h2 className="text-xl font-medium text-app-text-main">Your tax identifiers</h2>
         <p className="text-app-text-muted text-sm">
-          These are issued by FIRS. If you don't have a TIN yet, you can still continue — but you'll need it before generating any filing.
+          These are issued by FIRS. If you don&apos;t have a TIN yet, you can still continue — but you&apos;ll need it before generating any filing.
         </p>
       </div>
 
@@ -377,14 +384,14 @@ function Step2({ formData, setFormData }: any) {
   );
 }
 
-function Step3({ formData, setFormData }: any) {
+function Step3({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
         <h2 className="text-xl font-medium text-app-text-main">Fiscal year & tax period</h2>
         <p className="text-app-text-muted text-sm">
           Your fiscal year determines how we group your income and expenses for CIT purposes. Most Nigerian businesses run January to December. 
-          <span className="text-brand-primary cursor-pointer ml-1">What's a Fiscal year?</span> <span className="text-brand-primary cursor-pointer ml-1">What's CIT?</span>
+          <span className="text-brand-primary cursor-pointer ml-1">What&apos;s a Fiscal year?</span> <span className="text-brand-primary cursor-pointer ml-1">What&apos;s CIT?</span>
         </p>
       </div>
 
@@ -475,7 +482,7 @@ function Step3({ formData, setFormData }: any) {
   );
 }
 
-function Step4({ formData, setFormData }: any) {
+function Step4({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
@@ -578,7 +585,7 @@ function Step4({ formData, setFormData }: any) {
           <div className="flex gap-4 p-4 rounded-xl bg-app-surface border border-app-border">
             <Info className="text-brand-primary shrink-0" size={20} />
             <p className="text-xs text-app-text-muted leading-relaxed">
-              PAYE must be remitted to the relevant State Internal Revenue Service (SIRS) by the <span className="text-app-text-main font-medium">10th of every month</span>. We'll remind you before each deadline and pre-fill the schedule from your payroll data.
+              PAYE must be remitted to the relevant State Internal Revenue Service (SIRS) by the <span className="text-app-text-main font-medium">10th of every month</span>. We&apos;ll remind you before each deadline and pre-fill the schedule from your payroll data.
             </p>
           </div>
         </>
@@ -587,7 +594,7 @@ function Step4({ formData, setFormData }: any) {
   );
 }
 
-function Step5({ formData, setFormData }: any) {
+function Step5({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
@@ -664,7 +671,7 @@ function Step5({ formData, setFormData }: any) {
       )}
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-app-text-light">Upload last year's tax return (optional but recommended)</label>
+        <label className="text-sm font-medium text-app-text-light">Upload last year&apos;s tax return (optional but recommended)</label>
         <div className="border-2 border-dashed border-app-border rounded-2xl p-10 flex flex-col items-center gap-3 bg-app-bg hover:bg-app-surface transition-colors cursor-pointer group">
           <div className="w-10 h-10 rounded-xl bg-app-surface flex items-center justify-center text-app-text-muted group-hover:text-app-text-light transition-colors">
             <Upload size={20} />
@@ -693,7 +700,7 @@ function Step5({ formData, setFormData }: any) {
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="e.g. ₦4,500"
           />
-          <p className="text-[10px] text-app-text-muted">WHT deducted from your income by clients that you haven't yet claimed back.</p>
+          <p className="text-[10px] text-app-text-muted">WHT deducted from your income by clients that you haven&apos;t yet claimed back.</p>
         </div>
       </div>
     </div>

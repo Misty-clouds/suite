@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
+import type { BudgetPeriod, CreateBudgetInput } from "@suite/types";
+import { budgetsApi } from "@/lib/budgets-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CreateBudgetModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: () => void;
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -92,7 +95,20 @@ function RangeSlider({ value, onChange }: { value: number; onChange: (v: number)
 }
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
-export function CreateBudgetModal({ isOpen, onClose }: CreateBudgetModalProps) {
+// Maps the period chips to the API's lowercase enum.
+const PERIOD_MAP: Record<string, BudgetPeriod> = {
+  Weekly: "weekly",
+  Monthly: "monthly",
+  Quarterly: "quarterly",
+  Yearly: "yearly",
+  "+ Custom": "custom",
+};
+
+export function CreateBudgetModal({
+  isOpen,
+  onClose,
+  onCreated,
+}: CreateBudgetModalProps) {
   const [budgetName, setBudgetName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
@@ -103,8 +119,11 @@ export function CreateBudgetModal({ isOpen, onClose }: CreateBudgetModalProps) {
   const [selectedMembers, setSelectedMembers] = useState<number[]>([1, 2, 3, 4]);
   const [notes, setNotes] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Reset form when modal closes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen) {
       setBudgetName("");
@@ -117,8 +136,11 @@ export function CreateBudgetModal({ isOpen, onClose }: CreateBudgetModalProps) {
       setSelectedMembers([1, 2, 3, 4]);
       setNotes("");
       setAccountOpen(false);
+      setSaving(false);
+      setError(null);
     }
   }, [isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const toggleMember = (id: number) => {
     setSelectedMembers((prev) =>
@@ -126,9 +148,45 @@ export function CreateBudgetModal({ isOpen, onClose }: CreateBudgetModalProps) {
     );
   };
 
-  const handleSubmit = () => {
-    // TODO: wire up to real data layer
-    onClose();
+  const handleSubmit = async () => {
+    setError(null);
+    if (!budgetName.trim()) {
+      setError("Budget name is required");
+      return;
+    }
+    if (!selectedCategory) {
+      setError("Please choose a category");
+      return;
+    }
+    const amountNum = Number.parseFloat(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setError("Enter a valid budget amount");
+      return;
+    }
+
+    const payload: CreateBudgetInput = {
+      name: budgetName.trim(),
+      category: selectedCategory,
+      amount: amountNum,
+      linkedAccount: linkedAccount || undefined,
+      period: PERIOD_MAP[period] ?? "monthly",
+      autoRenew,
+      alertThreshold,
+      assignedTo: TEAM_MEMBERS.filter((m) =>
+        selectedMembers.includes(m.id),
+      ).map((m) => m.name),
+      notes: notes.trim() || undefined,
+    };
+
+    setSaving(true);
+    try {
+      await budgetsApi.create(payload);
+      onCreated?.();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create budget");
+      setSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -345,21 +403,27 @@ export function CreateBudgetModal({ isOpen, onClose }: CreateBudgetModalProps) {
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex gap-3 px-6 py-5 shrink-0 border-t border-[#1e1e1e]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-[#2a2a2a] bg-transparent py-3 text-sm font-medium text-white hover:bg-[#1e1e1e] transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
-          >
-            Create Budget
-          </button>
+        <div className="shrink-0 border-t border-[#1e1e1e] px-6 py-5">
+          {error && <p className="mb-3 text-xs text-rose-400">{error}</p>}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 rounded-xl border border-[#2a2a2a] bg-transparent py-3 text-sm font-medium text-white hover:bg-[#1e1e1e] transition-colors disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-500 transition-colors disabled:opacity-60"
+            >
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              Create Budget
+            </button>
+          </div>
         </div>
       </div>
     </div>

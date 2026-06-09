@@ -1,18 +1,75 @@
-import { X } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { X, Loader2 } from "lucide-react";
+import type { Client } from "@suite/types";
+import { clientsApi } from "@/lib/clients-api";
 
 interface AddClientModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: (client: Client) => void;
 }
 
 export default function AddClientModal({
   isOpen,
   onClose,
+  onCreated,
 }: AddClientModalProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
+  const reset = () => {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setAddress("");
+    setError(null);
+  };
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      setError("Client name is required");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const client = await clientsApi.create({
+        name: name.trim(),
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        address: address.trim() || undefined,
+      });
+      onCreated?.(client);
+      reset();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add client");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    "w-full rounded-lg border border-[#272727] bg-[#1a1a1a] px-3 py-2.5 text-[13px] text-white focus:border-zinc-500 focus:outline-none transition-colors";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={handleClose}
+    >
       <div
         className="w-[480px] rounded-2xl bg-[#141414] p-6 shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -27,7 +84,7 @@ export default function AddClientModal({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-zinc-400 hover:text-white transition-colors"
           >
             <X size={20} strokeWidth={1.5} />
@@ -41,7 +98,9 @@ export default function AddClientModal({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-[#272727] bg-[#1a1a1a] px-3 py-2.5 text-[13px] text-white focus:border-zinc-500 focus:outline-none transition-colors"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
             />
           </div>
 
@@ -50,8 +109,10 @@ export default function AddClientModal({
               Email address
             </label>
             <input
-              type="text"
-              className="w-full rounded-lg border border-[#272727] bg-[#1a1a1a] px-3 py-2.5 text-[13px] text-white focus:border-zinc-500 focus:outline-none transition-colors"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
             />
           </div>
 
@@ -61,7 +122,9 @@ export default function AddClientModal({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-[#272727] bg-[#1a1a1a] px-3 py-2.5 text-[13px] text-white focus:border-zinc-500 focus:outline-none transition-colors"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={inputClass}
             />
           </div>
 
@@ -71,31 +134,28 @@ export default function AddClientModal({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-[#272727] bg-[#1a1a1a] px-3 py-2.5 text-[13px] text-white focus:border-zinc-500 focus:outline-none transition-colors"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className={inputClass}
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-[13px] text-zinc-300">
-              Upload client profile photo (Optional)
-            </label>
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#272727] bg-[#141414] py-8 w-full">
-              <div className="mb-4 h-14 w-14 rounded-full bg-[#272727]"></div>
-              <button className="rounded-lg border border-[#272727] bg-transparent px-4 py-1.5 text-[13px] text-zinc-300 hover:bg-[#1C1C1C] transition-colors">
-                Select file
-              </button>
-            </div>
-          </div>
+          {error && <p className="text-[12px] text-rose-400">{error}</p>}
         </div>
 
         <div className="mt-6 flex gap-3 pt-2">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 rounded-lg border border-[#272727] bg-transparent py-2.5 text-[13px] font-medium text-white hover:bg-[#1a1a1a] transition-colors"
           >
             Cancel
           </button>
-          <button className="flex-1 rounded-lg bg-blue-600 py-2.5 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors">
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
             Add and select
           </button>
         </div>

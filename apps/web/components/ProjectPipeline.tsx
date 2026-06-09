@@ -434,9 +434,15 @@ export default function ProjectPipeline({
   const [renderFullscreen, setRenderFullscreen] = useState(false);
   const { collapsed } = useSidebar();
 
-  useEffect(() => {
-    setColumns(isEmpty ? INITIAL_DATA.map(col => ({ ...col, tasks: [] })) : INITIAL_DATA);
-  }, [isEmpty]);
+  // Reset columns when the `isEmpty` prop flips — React's sanctioned
+  // "adjust state during render" pattern (avoids a setState-in-effect).
+  const [prevIsEmpty, setPrevIsEmpty] = useState(isEmpty);
+  if (isEmpty !== prevIsEmpty) {
+    setPrevIsEmpty(isEmpty);
+    setColumns(
+      isEmpty ? INITIAL_DATA.map((col) => ({ ...col, tasks: [] })) : INITIAL_DATA,
+    );
+  }
 
   useEffect(() => {
     if (!isFullscreen) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -10,9 +10,12 @@ import {
   Plus,
   MoreHorizontal,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { FaMoneyBill } from "react-icons/fa";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import type { Budget } from "@suite/types";
+import { budgetsApi } from "@/lib/budgets-api";
 import { CreateBudgetModal } from "../components/CreateBudgetModal";
 import { BudgetDetailsDrawer } from "../components/BudgetDetailsDrawer";
 
@@ -20,7 +23,7 @@ import { BudgetDetailsDrawer } from "../components/BudgetDetailsDrawer";
 type BudgetStatus = "On track" | "Budget exceeded" | "Needs attention";
 
 export interface BudgetCard {
-  id: number;
+  id: string;
   name: string;
   category: string;
   categoryColor: string;
@@ -35,50 +38,47 @@ export interface BudgetCard {
   ringColor: string;
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const budgetCards: BudgetCard[] = [
-  {
-    id: 1, name: "Contract Staffing", category: "Payroll", categoryColor: "#3DBEA7",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "On track", resetInfo: "Monthly, Resets in 8d", progress: 32, ringColor: "#3DBEA7",
-  },
-  {
-    id: 2, name: "Contract Staffing", category: "Marketing", categoryColor: "#FF7676",
-    account: "Chase ***890B", spentPct: 80, left: "$350", spent: "$3,000", total: "$2,460",
-    status: "Budget exceeded", resetInfo: "Weekly, Resets in 3d", progress: 100, ringColor: "#FF7676",
-  },
-  {
-    id: 3, name: "Contract Staffing", category: "Logistics", categoryColor: "#60a5fa",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "On track", resetInfo: "Quarterly, Resets in 8d", progress: 32, ringColor: "#3DBEA7",
-  },
-  {
-    id: 4, name: "Contract Staffing", category: "Operations", categoryColor: "#FCFF96",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "Needs attention", resetInfo: "Yearly, Resets in 3m", progress: 65, ringColor: "#FCFF96",
-  },
-  {
-    id: 5, name: "Contract Staffing", category: "Payroll", categoryColor: "#3DBEA7",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "On track", resetInfo: "Monthly, Resets in 8d", progress: 32, ringColor: "#3DBEA7",
-  },
-  {
-    id: 6, name: "Contract Staffing", category: "Marketing", categoryColor: "#FF7676",
-    account: "Chase ***890B", spentPct: 80, left: "$350", spent: "$4,900", total: "$2,450",
-    status: "Budget exceeded", resetInfo: "Monthly, Resets in 8d", progress: 100, ringColor: "#FF7676",
-  },
-  {
-    id: 7, name: "Contract Staffing", category: "Logistics", categoryColor: "#60a5fa",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "On track", resetInfo: "Monthly, Resets in 8d", progress: 32, ringColor: "#3DBEA7",
-  },
-  {
-    id: 8, name: "Contract Staffing", category: "Operations", categoryColor: "#FCFF96",
-    account: "Chase ***890B", spentPct: 32, left: "$350", spent: "$2,100", total: "$2,450",
-    status: "Needs attention", resetInfo: "Monthly, Resets in 8d", progress: 65, ringColor: "#FCFF96",
-  },
-];
+const money = (n: number) =>
+  new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(n);
 
+const STATUS_LABEL: Record<Budget["status"], BudgetStatus> = {
+  on_track: "On track",
+  needs_attention: "Needs attention",
+  exceeded: "Budget exceeded",
+};
+
+const STATUS_RING: Record<Budget["status"], string> = {
+  on_track: "#3DBEA7",
+  needs_attention: "#FCFF96",
+  exceeded: "#FF7676",
+};
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Maps an API Budget into the card view-model used by this tab.
+function toCard(b: Budget): BudgetCard {
+  return {
+    id: b.id,
+    name: b.name,
+    category: b.category,
+    categoryColor: b.color ?? STATUS_RING[b.status],
+    account: b.linkedAccount ?? "—",
+    spentPct: b.progress,
+    left: money(b.remaining),
+    spent: money(b.spent),
+    total: money(b.amount),
+    status: STATUS_LABEL[b.status],
+    resetInfo: `${cap(b.period)}${b.autoRenew ? ", auto-renews" : ""}`,
+    progress: b.progress,
+    ringColor: STATUS_RING[b.status],
+  };
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
 const accountBreakdown = [
   { name: "Chase ***890B", amount: "$4,500", pct: 88 },
   { name: "Bank of America ***2345", amount: "$3,200", pct: 63 },
@@ -261,7 +261,11 @@ function BudgetCardItem({ card, onOpen }: { card: BudgetCard; onOpen: (card: Bud
 }
 
 // ─── Right Sidebar ────────────────────────────────────────────────────────────
-function BudgetSidebar() {
+function BudgetSidebar({
+  health,
+}: {
+  health: { onTrack: number; needsAttention: number; exceeded: number };
+}) {
   return (
     <div className="w-80 shrink-0 flex flex-col gap-5">
       {/* Monthly Overview */}
@@ -291,15 +295,15 @@ function BudgetSidebar() {
         <span className="text-sm font-medium text-white block mb-3">Budget Health</span>
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 flex flex-col items-center gap-1">
-            <span className="text-2xl font-bold text-emerald-400">5</span>
+            <span className="text-2xl font-bold text-emerald-400">{health.onTrack}</span>
             <span className="text-[10px] text-emerald-500">On track</span>
           </div>
           <div className="rounded-lg bg-[#2E2E18] border border-amber-500/20 p-3 flex flex-col items-center gap-1">
-            <span className="text-2xl font-bold text-[#FCFF96]">1</span>
+            <span className="text-2xl font-bold text-[#FCFF96]">{health.needsAttention}</span>
             <span className="text-[10px] text-[#FCFF96]">Attention</span>
           </div>
           <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-3 flex flex-col items-center gap-1">
-            <span className="text-2xl font-bold text-rose-400">2</span>
+            <span className="text-2xl font-bold text-rose-400">{health.exceeded}</span>
             <span className="text-[10px] text-rose-500">Exceeded</span>
           </div>
         </div>
@@ -376,43 +380,6 @@ function BudgetSidebar() {
   );
 }
 
-// ─── Stats Cards ──────────────────────────────────────────────────────────────
-const budgetStats = [
-  {
-    icon: "$",
-    title: "Total budget",
-    value: "$45,000",
-    change: "+12%",
-    trend: "up" as const,
-    subtext: "6 active budgets",
-  },
-  {
-    icon: "$",
-    title: "Total spent",
-    value: "$32,000",
-    change: "-5%",
-    trend: "down" as const,
-    subtext: "-$240 vs last month",
-  },
-  {
-    icon: "$",
-    title: "Remaining",
-    value: "$9,000",
-    change: "-5%",
-    trend: "down" as const,
-    subtext: "46% of budget used",
-  },
-  {
-    icon: "♥",
-    title: "Budget health",
-    value: "4/5",
-    change: "",
-    trend: "up" as const,
-    subtext: "2 needs attention",
-    noChange: true,
-  },
-];
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function BudgetTab() {
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
@@ -420,17 +387,81 @@ export function BudgetTab() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<BudgetCard | null>(null);
 
-  const filtered = budgetCards.filter(
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setBudgets(await budgetsApi.list());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load budgets");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const cards = budgets.map(toCard);
+  const filtered = cards.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.category.toLowerCase().includes(search.toLowerCase()),
   );
 
+  // ── Live stats computed from the loaded budgets ─────────────────────────────
+  const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
+  const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
+  const remaining = Math.max(0, totalBudget - totalSpent);
+  const usedPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const health = {
+    onTrack: budgets.filter((b) => b.status === "on_track").length,
+    needsAttention: budgets.filter((b) => b.status === "needs_attention").length,
+    exceeded: budgets.filter((b) => b.status === "exceeded").length,
+  };
+  const healthy = health.onTrack;
+
+  const stats = [
+    {
+      icon: "$",
+      title: "Total budget",
+      value: money(totalBudget),
+      subtext: `${budgets.length} active budget${budgets.length === 1 ? "" : "s"}`,
+      noChange: true,
+    },
+    {
+      icon: "$",
+      title: "Total spent",
+      value: money(totalSpent),
+      subtext: `${usedPct}% of budget used`,
+      noChange: true,
+    },
+    {
+      icon: "$",
+      title: "Remaining",
+      value: money(remaining),
+      subtext: `${100 - usedPct}% still available`,
+      noChange: true,
+    },
+    {
+      icon: "♥",
+      title: "Budget health",
+      value: `${healthy}/${budgets.length || 0}`,
+      subtext: `${health.needsAttention + health.exceeded} need attention`,
+      noChange: true,
+    },
+  ];
+
   return (
     <div className="p-6 space-y-5">
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {budgetStats.map((stat, i) => (
+        {stats.map((stat, i) => (
           <div
             key={i}
             className="relative overflow-hidden rounded-2xl border border-[#272727] bg-[#161616] p-5 shadow-lg"
@@ -448,17 +479,6 @@ export function BudgetTab() {
             </div>
             <div className="flex items-end justify-between gap-2">
               <h3 className="text-2xl font-medium text-white">{stat.value}</h3>
-              {!stat.noChange && stat.change && (
-                <span
-                  className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-medium mb-0.5 ${
-                    stat.trend === "up"
-                      ? "bg-green-500/10 text-green-500"
-                      : "bg-red-500/10 text-red-500"
-                  }`}
-                >
-                  {stat.change}
-                </span>
-              )}
             </div>
             <p className="text-xs text-[#6E7B82] mt-1">{stat.subtext}</p>
           </div>
@@ -520,14 +540,25 @@ export function BudgetTab() {
       <div className="flex gap-5 items-start">
         {/* Budget cards grid */}
         <div className="flex-1 min-w-0">
-          {viewMode === "kanban" ? (
+          {error && (
+            <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
+              <Loader2 size={16} className="animate-spin" /> Loading budgets…
+            </div>
+          ) : viewMode === "kanban" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filtered.map((card) => (
                 <BudgetCardItem key={card.id} card={card} onOpen={setSelectedBudget} />
               ))}
               {filtered.length === 0 && (
                 <div className="col-span-2 py-16 text-center text-sm text-zinc-600">
-                  No budgets found.
+                  {budgets.length === 0
+                    ? "No budgets yet — create your first to start tracking spend."
+                    : "No budgets match your search."}
                 </div>
               )}
             </div>
@@ -574,12 +605,13 @@ export function BudgetTab() {
         </div>
 
         {/* Right sidebar */}
-        <BudgetSidebar />
+        <BudgetSidebar health={health} />
       </div>
 
       <CreateBudgetModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onCreated={load}
       />
 
       <BudgetDetailsDrawer
