@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useRef, KeyboardEvent, ClipboardEvent } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
+import { AuthHeading, AuthField, AuthButton } from "@/components/auth/fields";
 
 type Step = "email" | "code";
 
@@ -30,7 +30,6 @@ export default function ResetPasswordPage() {
       setEmailError("Please enter a valid email address.");
       return;
     }
-    // Dummy validation — only the known email "exists"
     if (email.toLowerCase() !== DUMMY_EMAIL) {
       setEmailError("No account found with that email address.");
       return;
@@ -41,16 +40,12 @@ export default function ResetPasswordPage() {
 
   // ── Step 2: OTP input helpers ─────────────────────────────────────────────
   function handleCodeChange(index: number, value: string) {
-    // Accept only digits
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = [...code];
     next[index] = digit;
     setCode(next);
     setCodeError("");
-
-    if (digit && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
+    if (digit && index < 5) inputRefs.current[index + 1]?.focus();
   }
 
   function handleCodeKeyDown(index: number, e: KeyboardEvent<HTMLInputElement>) {
@@ -76,8 +71,7 @@ export default function ResetPasswordPage() {
     const next = Array(6).fill("");
     pasted.split("").forEach((ch, i) => (next[i] = ch));
     setCode(next);
-    const focusIndex = Math.min(pasted.length, 5);
-    inputRefs.current[focusIndex]?.focus();
+    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   }
 
   function handleCodeSubmit(e: React.FormEvent) {
@@ -86,7 +80,6 @@ export default function ResetPasswordPage() {
       setCodeError("Please enter all 6 digits.");
       return;
     }
-    // Dummy validation — correct code is 123456
     if (code.join("") !== "123456") {
       setCodeError("Invalid code. Please try again.");
       return;
@@ -95,54 +88,55 @@ export default function ResetPasswordPage() {
     setSuccess(true);
   }
 
-  // ── Shared layout wrapper ─────────────────────────────────────────────────
-  return (
-    <div className="flex min-h-screen w-full bg-[#1A1A1A] lg:bg-[#0A0A0A] text-white font-sans overflow-hidden">
-      {/* Left Side - Form */}
-      <div className="flex w-full flex-col justify-center px-8 sm:px-12 lg:w-1/2 lg:px-24 xl:px-32 relative z-10 bg-[#161616]">
-        {success ? (
-          <SuccessView onBack={() => { setStep("email"); setEmail(""); setCode(Array(6).fill("")); setSuccess(false); }} />
-        ) : step === "email" ? (
-          <EmailStep
-            email={email}
-            setEmail={setEmail}
-            emailError={emailError}
-            isEmailValid={isEmailValid}
-            onSubmit={handleEmailSubmit}
-          />
-        ) : (
-          <CodeStep
-            email={email}
-            code={code}
-            codeError={codeError}
-            isCodeComplete={isCodeComplete}
-            inputRefs={inputRefs}
-            onCodeChange={handleCodeChange}
-            onCodeKeyDown={handleCodeKeyDown}
-            onCodePaste={handleCodePaste}
-            onSubmit={handleCodeSubmit}
-            onBack={() => { setStep("email"); setCode(Array(6).fill("")); setCodeError(""); }}
-          />
-        )}
-      </div>
+  if (success) {
+    return (
+      <SuccessView
+        onBack={() => {
+          setStep("email");
+          setEmail("");
+          setCode(Array(6).fill(""));
+          setSuccess(false);
+        }}
+      />
+    );
+  }
 
-      {/* Right Side - Image */}
-      <div className="hidden w-1/2 lg:flex relative bg-[#0A0A0A] items-center justify-center p-4">
-        <div className="relative h-full w-full overflow-hidden rounded-2xl shadow-2xl border border-[#333333]/30">
-          <Image
-            src="/assets/images/auth.png"
-            alt="Dashboard Preview"
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
-      </div>
-    </div>
+  if (step === "email") {
+    return (
+      <EmailStep
+        email={email}
+        setEmail={setEmail}
+        emailError={emailError}
+        isEmailValid={isEmailValid}
+        onSubmit={handleEmailSubmit}
+      />
+    );
+  }
+
+  return (
+    <CodeStep
+      email={email}
+      code={code}
+      codeError={codeError}
+      isCodeComplete={isCodeComplete}
+      inputRefs={inputRefs}
+      onCodeChange={handleCodeChange}
+      onCodeKeyDown={handleCodeKeyDown}
+      onCodePaste={handleCodePaste}
+      onSubmit={handleCodeSubmit}
+      onBack={() => {
+        setStep("email");
+        setCode(Array(6).fill(""));
+        setCodeError("");
+      }}
+    />
   );
 }
 
-// ── Step 1: Email ─────────────────────────────────────────────────────────────
+const backLinkClass =
+  "flex items-center justify-center gap-1.5 text-[14px] text-[#6e7b82] transition-colors hover:text-[#dedede]";
+
+// ── Step 1: Email ───────────────────────────────────────────────────────────
 function EmailStep({
   email,
   setEmail,
@@ -157,54 +151,30 @@ function EmailStep({
   onSubmit: (e: React.FormEvent) => void;
 }) {
   return (
-    <div className="w-full">
-      <div className="mb-10 mt-20">
-        <h1 className="text-lg font-medium tracking-tight text-[#EAEAEA] mb-2">
-          Forgot Your Password?
-        </h1>
-        <p className="text-[#6E7B82] text-sm font-normal">
-          Enter your email to reset it
-        </p>
-      </div>
-
-      <form className="space-y-6" onSubmit={onSubmit}>
-        <div className="space-y-2">
-          <label className="text-sm font-normal text-[#EAEAEA]" htmlFor="email">
-            Email
-          </label>
-          <input
+    <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+      <AuthHeading
+        title="Forgot your password?"
+        subtitle="Enter your email to reset it"
+      />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1">
+          <AuthField
             id="email"
+            label="Email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl bg-[#1F1F1F] border border-transparent p-4 text-white placeholder:text-gray-600 focus:border-[#333333] focus:ring-1 focus:ring-[#333333] focus:outline-none transition-all"
+            onChange={setEmail}
+            autoComplete="email"
           />
-          {emailError && (
-            <p className="text-sm text-[#FF8080]">{emailError}</p>
-          )}
+          {emailError && <p className="text-[12px] text-[#FF8080]">{emailError}</p>}
         </div>
-
-        <button
-          type="submit"
-          disabled={!isEmailValid}
-          className={`w-full rounded-full py-4 text-lg font-normal transition-all shadow-lg ${
-            isEmailValid
-              ? "bg-[#045DDF] text-white hover:bg-[#034BBB] hover:shadow-xl cursor-pointer"
-              : "bg-[#3A3A3A] text-[#AAAAAA] cursor-not-allowed"
-          }`}
-        >
-          Continue
-        </button>
-
-        <Link
-          href="/login"
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#333333] py-4 text-lg font-normal text-[#AAAAAA] hover:text-white hover:border-[#555555] transition-all"
-        >
-          <ArrowLeft size={18} />
+        <AuthButton disabled={!isEmailValid}>Continue</AuthButton>
+        <Link href="/login" className={backLinkClass}>
+          <ArrowLeft size={16} />
           Back to login
         </Link>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }
 
@@ -225,37 +195,29 @@ function CodeStep({
   code: string[];
   codeError: string;
   isCodeComplete: boolean;
-  inputRefs: React.MutableRefObject<(HTMLInputElement | null)[]>;
+  inputRefs: React.RefObject<(HTMLInputElement | null)[]>;
   onCodeChange: (i: number, v: string) => void;
   onCodeKeyDown: (i: number, e: KeyboardEvent<HTMLInputElement>) => void;
   onCodePaste: (e: ClipboardEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   onBack: () => void;
 }) {
+  const otpClass =
+    "h-12 w-full min-w-0 rounded-[6px] border border-[#222222] bg-[#1a1a1a] text-center text-lg font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors focus:border-[#3a3a3a] focus:outline-none caret-transparent";
+
   return (
-    <div className="w-full">
-      <div className="mb-10 mt-20">
-        <h1 className="text-lg font-medium tracking-tight text-[#DEDEDE] mb-2">
-          Reset Password
-        </h1>
-        <p className="text-[#6E7B82] text-sm font-light">
-          Enter the code sent to{" "}
-          <span className="text-[#EAEAEA] font-normal">{email}</span>
-        </p>
-      </div>
-
-      <form className="space-y-6" onSubmit={onSubmit}>
-        <div className="space-y-3">
-          <label className="text-sm font-normal text-[#EAEAEA]">
-            Enter Code
-          </label>
-
-          {/* OTP inputs — 3 digits, dash, 3 digits */}
-          <div className="flex items-center gap-3">
+    <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+      <AuthHeading title="Reset password" subtitle={`Enter the code sent to ${email}`} />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <label className="text-[14px] font-medium text-[#dedede]">Enter code</label>
+          <div className="flex items-center gap-1.5">
             {[0, 1, 2].map((i) => (
               <input
                 key={i}
-                ref={(el) => { inputRefs.current[i] = el; }}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
@@ -263,16 +225,16 @@ function CodeStep({
                 onChange={(e) => onCodeChange(i, e.target.value)}
                 onKeyDown={(e) => onCodeKeyDown(i, e)}
                 onPaste={onCodePaste}
-                className="h-16 w-full rounded-xl bg-[#1F1F1F] border border-transparent text-center text-2xl font-medium text-white focus:border-[#333333] focus:ring-1 focus:ring-[#333333] focus:outline-none transition-all caret-transparent"
+                className={otpClass}
               />
             ))}
-
-            <span className="text-2xl text-[#555555] select-none shrink-0">—</span>
-
+            <span className="shrink-0 select-none text-[#4e4e4e]">—</span>
             {[3, 4, 5].map((i) => (
               <input
                 key={i}
-                ref={(el) => { inputRefs.current[i] = el; }}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
@@ -280,82 +242,51 @@ function CodeStep({
                 onChange={(e) => onCodeChange(i, e.target.value)}
                 onKeyDown={(e) => onCodeKeyDown(i, e)}
                 onPaste={onCodePaste}
-                className="h-16 w-full rounded-xl bg-[#1F1F1F] border border-transparent text-center text-2xl font-medium text-white focus:border-[#333333] focus:ring-1 focus:ring-[#333333] focus:outline-none transition-all caret-transparent"
+                className={otpClass}
               />
             ))}
           </div>
-
-          {codeError && (
-            <p className="text-sm text-[#FF8080]">{codeError}</p>
-          )}
-
-          <p className="text-sm text-[#555555]">
+          {codeError && <p className="text-[12px] text-[#FF8080]">{codeError}</p>}
+          <p className="text-[12px] text-[#4e4e4e]">
             Hint: the dummy code is{" "}
-            <span className="text-[#888888] font-medium">123456</span>
+            <span className="font-medium text-[#6e7b82]">123456</span>
           </p>
         </div>
-
-        <button
-          type="submit"
-          disabled={!isCodeComplete}
-          className={`w-full rounded-full py-4 text-lg font-normal transition-all shadow-lg ${
-            isCodeComplete
-              ? "bg-[#045DDF] text-white hover:bg-[#034BBB] hover:shadow-xl cursor-pointer"
-              : "bg-[#3A3A3A] text-[#AAAAAA] cursor-not-allowed"
-          }`}
-        >
-          Continue
-        </button>
-
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#333333] py-4 text-lg font-normal text-[#AAAAAA] hover:text-white hover:border-[#555555] transition-all"
-        >
-          <ArrowLeft size={18} />
+        <AuthButton disabled={!isCodeComplete}>Continue</AuthButton>
+        <button type="button" onClick={onBack} className={backLinkClass}>
+          <ArrowLeft size={16} />
           Back
         </button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }
 
 // ── Success state ─────────────────────────────────────────────────────────────
 function SuccessView({ onBack }: { onBack: () => void }) {
   return (
-    <div className="w-full text-center">
-      <div className="mb-10 mt-20 flex flex-col items-center">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#045DDF]/15 border border-[#045DDF]/30">
-          <svg
-            className="h-9 w-9 text-[#045DDF]"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h1 className="text-4xl font-normal tracking-tight text-[#EAEAEA] mb-2">
-          Code Verified!
-        </h1>
-        <p className="text-[#888888] text-lg font-light max-w-xs">
+    <div className="flex flex-col items-center gap-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#045DDF]/30 bg-[#045DDF]/15 text-[#045DDF]">
+        <Check size={26} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-[18px] font-medium text-[#dedede]">Code verified!</h1>
+        <p className="text-[14px] leading-[1.3] text-[#6e7b82]">
           Your identity has been confirmed. You can now set a new password.
         </p>
       </div>
-
-      <div className="space-y-4">
+      <div className="flex w-full flex-col gap-4">
         <Link
           href="/login"
-          className="block w-full rounded-full bg-[#045DDF] py-4 text-lg font-normal text-white hover:bg-[#034BBB] transition-all shadow-lg hover:shadow-xl"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-[#045DDF] text-[14px] font-medium text-white transition-colors hover:bg-[#034BBB]"
         >
-          Set New Password
+          Set new password
         </Link>
         <button
           onClick={onBack}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#333333] py-4 text-lg font-normal text-[#AAAAAA] hover:text-white hover:border-[#555555] transition-all"
+          className="flex items-center justify-center gap-1.5 text-[14px] text-[#6e7b82] transition-colors hover:text-[#dedede]"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={16} />
           Back to login
         </button>
       </div>

@@ -9,7 +9,6 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import DeleteModal from "./DeleteModal";
-import { useRouter } from "next/navigation";
 
 export type Priority = "Low" | "Medium" | "High";
 
@@ -55,7 +54,6 @@ export default function TaskCard({
   className,
   onPointerDown,
 }: TaskCardProps) {
-  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -83,7 +81,6 @@ export default function TaskCard({
       style={style}
       className={`flex flex-col gap-3 group relative w-full cursor-pointer overflow-visible rounded-lg bg-[#161616] p-2 text-white shadow ring-1 ring-white/5 transition-all duration-300 hover:bg-[#232323] hover:shadow-cyan-500/10 hover:ring-white/10 ${className}`}
       onPointerDown={onPointerDown}
-      onClick={() => router.push(`/projects/cloud-migration-suite`)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">

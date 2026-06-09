@@ -48,14 +48,6 @@ export const statsCards = [
   },
   {
     icon: "$",
-    title: "Total expenses",
-    value: "$32,000",
-    change: "-5%",
-    trend: "down" as const,
-    subtext: "Down 5% compared to last month",
-  },
-  {
-    icon: "$",
     title: "Burn rate",
     value: "$32,000",
     change: "-5%",

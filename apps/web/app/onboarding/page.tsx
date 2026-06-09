@@ -101,7 +101,7 @@ export default function OnboardingPage() {
             </>
           ) : (
             <Link
-              href="/login"
+              href="/"
               className="flex w-full items-center justify-center gap-3 rounded-full bg-brand-primary py-4.5 text-lg font-bold text-white shadow-2xl shadow-brand-primary/25 transition-all hover:bg-blue-600 hover:shadow-brand-primary/50 active:scale-95 group"
             >
               Continue

@@ -26,14 +26,14 @@ export function OverviewCharts() {
   return (
     <div className="p-6 space-y-6">
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {statsCards.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}
       </div>
 
       {/* Charts Row */}
-      <div className="flex gap-5">
+      <div className="flex flex-col gap-5 xl:flex-row">
         {/* Revenue vs Expenses Bar Chart */}
         <div className="flex-1 min-w-0 rounded-2xl shadow bg-[#161616] p-5">
           <div className="mb-4 flex items-start justify-between gap-4">
@@ -99,7 +99,7 @@ export function OverviewCharts() {
         </div>
 
         {/* Expense Breakdown */}
-        <div className="w-72 shrink-0 rounded-2xl border border-[#272727] bg-[#161616] p-5 shadow-lg flex flex-col">
+        <div className="w-full shrink-0 rounded-2xl border border-[#272727] bg-[#161616] p-5 shadow-lg flex flex-col xl:w-72">
           <GaugeChart total="$3500" />
           <div className="mt-2 flex flex-col gap-3 px-1">
             {expenseBreakdown.map((item) => (

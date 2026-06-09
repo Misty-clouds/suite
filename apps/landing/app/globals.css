@@ -1,0 +1,100 @@
+@import "@suite/config/tailwind/base.css";
+
+@theme inline {
+  --font-sans: var(--font-satoshi);
+
+  /* Brand — from Figma (Lymb) theme */
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-brand-deep: var(--brand-deep);
+
+  /* Surfaces */
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-card: var(--app-card);
+  --color-app-card-hover: var(--app-card-hover);
+
+  /* Borders */
+  --color-app-border: var(--app-border);
+
+  /* Text */
+  --color-app-text: var(--app-text);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-dim: var(--app-text-dim);
+}
+
+:root {
+  /* Figma primary #045DDF, hero gradient runs to a brighter cyan-blue */
+  --brand: #045ddf;
+  --brand-bright: #0792f1;
+  --brand-deep: #023279;
+
+  --app-bg: #050505;
+  --app-surface: #0a0a0a;
+  --app-card: #111111;
+  --app-card-hover: #161616;
+
+  --app-border: #272727;
+
+  --app-text: #f5f5f5;
+  --app-text-muted: #a6a6a6;
+  --app-text-dim: #787878;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-satoshi), sans-serif;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Pill badge gradient used across hero + section eyebrows */
+.gradient-pill {
+  background: linear-gradient(
+    to right,
+    rgba(167, 167, 167, 0.2),
+    rgba(73, 73, 73, 0.2) 47%,
+    rgba(121, 121, 121, 0.2)
+  );
+}
+
+/* Primary CTA — the blue → cyan gradient pill from the Figma hero */
+.btn-gradient {
+  background: linear-gradient(to bottom, var(--brand), var(--brand-bright));
+}
+
+/* Text gradient used on the hero headline accent */
+.text-gradient {
+  background: linear-gradient(to right, #0051ff, #007799);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Radial glow behind the hero / CTA sections */
+.hero-glow {
+  background:
+    radial-gradient(
+      60% 50% at 50% 0%,
+      rgba(4, 93, 223, 0.55) 0%,
+      rgba(2, 50, 121, 0) 70%
+    );
+}
+
+/* Sweeping brand swirl reproduced with layered conic/radial gradients */
+.brand-swirl {
+  background:
+    radial-gradient(120% 80% at 20% 50%, rgba(7, 146, 241, 0.35), transparent 60%),
+    radial-gradient(120% 80% at 80% 60%, rgba(4, 93, 223, 0.45), transparent 60%),
+    conic-gradient(
+      from 200deg at 50% 50%,
+      rgba(2, 50, 121, 0.2),
+      rgba(7, 146, 241, 0.45),
+      rgba(4, 93, 223, 0.2),
+      rgba(2, 50, 121, 0.2)
+    );
+}

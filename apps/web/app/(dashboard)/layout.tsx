@@ -1,6 +1,7 @@
 "use client";
 
 import Sidebar from "../../components/Sidebar";
+import AiAssistant from "../../components/AiAssistant";
 import { SidebarProvider, useSidebar } from "../../components/SidebarContext";
 import { ReactNode } from "react";
 
@@ -16,6 +17,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
       >
         {children}
       </main>
+      <AiAssistant />
     </div>
   );
 }

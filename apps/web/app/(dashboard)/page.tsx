@@ -1,51 +1,86 @@
-import StatsCards from "../../components/StatsCards";
-import RevenueChart from "../../components/RevenueChart";
-import ProjectPipeline from "../../components/ProjectPipeline";
-import RightPanel from "../../components/RightPanel";
-import Header from "../../components/Header";
+"use client";
 
-// Toggle this to true to simulate the zero state across the dashboard
-const SIMULATE_ZERO_STATE = false;
+import { useState } from "react";
+import { Layers, DollarSign, Scale, Building, FileSearch } from "lucide-react";
+import Header from "@/components/Header";
+import RightPanel from "@/components/RightPanel";
+import AddTransactionModal from "@/components/AddTransactionModal";
+import { OverviewCharts } from "@/components/charts/OverviewCharts";
+import { TransactionsTable } from "@/components/TransactionsTable";
+import { transactionsData } from "@/lib/chartData";
+import { BudgetTab } from "./financials/tabs/BudgetTab";
+import { TaxTab } from "./financials/tabs/TaxTab";
+import { AccountsTab } from "./financials/tabs/AccountsTab";
+
+type FinancialsTab = "analytics" | "transactions" | "budget" | "accounts" | "tax";
+
+const TABS: { key: FinancialsTab; label: string; icon: React.ReactNode }[] = [
+  { key: "analytics", label: "Overview", icon: <Layers size={16} /> },
+  { key: "transactions", label: "Transactions", icon: <DollarSign size={16} /> },
+  { key: "budget", label: "Budget", icon: <Scale size={16} /> },
+  { key: "accounts", label: "Accounts", icon: <Building size={16} /> },
+  { key: "tax", label: "Tax", icon: <FileSearch size={16} /> },
+];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<FinancialsTab>("analytics");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   return (
     <>
       <Header />
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 scrollbar-thin scrollbar-track-app-bg scrollbar-thumb-app-border">
-        <div className="flex w-full max-w-full flex-col gap-6 lg:flex-row">
-          {/* Main Dashboard Column */}
-          <div className="flex-1 min-w-0">
-            {/* Stats Row */}
-            <StatsCards isEmpty={SIMULATE_ZERO_STATE} />
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-[#0A0A0A] scrollbar-thumb-[#272727]">
+        {/* Tabs */}
+        <div className="flex items-center gap-6 overflow-x-auto border-b border-[#272727] px-6 scrollbar-hide">
+          {TABS.map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex shrink-0 items-center gap-2 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === key
+                  ? "border-white text-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <span className="flex items-center justify-center">{icon}</span>
+              {label}
+            </button>
+          ))}
+        </div>
 
-            {/* Chart Row */}
-            <RevenueChart isEmpty={SIMULATE_ZERO_STATE} />
+        <div className="flex w-full max-w-full flex-col lg:flex-row">
+          {/* Main financials column */}
+          <div className="min-w-0 flex-1">
+            {activeTab === "analytics" && <OverviewCharts />}
 
-            {/* Pipeline Row */}
-            <div className="rounded-2xl border border-app-border bg-app-card h-[500px] shadow-lg flex flex-col overflow-hidden relative">
-              <div className="absolute inset-0">
-                <ProjectPipelineWrapper isEmpty={SIMULATE_ZERO_STATE} />
-              </div>
-            </div>
+            {activeTab === "transactions" && (
+              <TransactionsTable
+                transactions={transactionsData}
+                onNewTransaction={() => setIsAddModalOpen(true)}
+              />
+            )}
+
+            {activeTab === "budget" && <BudgetTab />}
+
+            {activeTab === "accounts" && <AccountsTab />}
+
+            {activeTab === "tax" && <TaxTab />}
           </div>
 
-          {/* Right Panel Column */}
-          <div className="shrink-0 w-full lg:w-72 flex flex-col">
-            <RightPanel isEmpty={SIMULATE_ZERO_STATE} />
-          </div>
+          {/* Right: AI Insights + Activities — Overview tab only */}
+          {activeTab === "analytics" && (
+            <aside className="w-full shrink-0 p-6 lg:w-80 lg:pl-0">
+              <RightPanel />
+            </aside>
+          )}
         </div>
       </div>
-    </>
-  );
-}
 
-// Wrapper to adjust styles of ProjectPipeline without deep refactoring right now
-function ProjectPipelineWrapper({ isEmpty }: { isEmpty?: boolean }) {
-  return (
-    <div className="h-full w-full [&>div]:bg-transparent [&>div]:p-4 [&>div>div:first-child]:mb-2">
-      <ProjectPipeline isEmpty={isEmpty} />
-    </div>
+      <AddTransactionModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
+    </>
   );
 }

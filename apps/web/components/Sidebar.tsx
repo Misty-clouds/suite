@@ -5,12 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   LayoutDashboard,
-  FolderKanban,
   FileText,
-  TrendingUp,
-  MessageSquare,
   Settings,
-  Users,
   Search,
   Command,
   CreditCard,
@@ -20,7 +16,6 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
-import { FaMoneyBill } from "react-icons/fa";
 import { useSidebar } from "./SidebarContext";
 
 export default function Sidebar() {
@@ -32,7 +27,6 @@ export default function Sidebar() {
       title: "WORKSPACE",
       items: [
         { name: "Dashboard", icon: LayoutDashboard, href: "/" },
-        { name: "Projects", icon: FolderKanban, href: "/projects" },
         { name: "Documents", icon: FileText, href: "/documents" },
       ],
     },
@@ -40,20 +34,11 @@ export default function Sidebar() {
       title: "OPERATIONS",
       items: [
         { name: "Invoicing & Payments", icon: CreditCard, href: "/invoicing" },
-        { name: "Financials", icon: FaMoneyBill, href: "/financials" },
-        { name: "Analytics", icon: TrendingUp, href: "/analytics" },
       ],
     },
     {
       title: "MANAGEMENT",
       items: [
-        { name: "Teams & Workspace", icon: Users, href: "/teams", badge: 3 },
-        {
-          name: "Discussions",
-          icon: MessageSquare,
-          href: "/discussions",
-          badge: 3,
-        },
         { name: "Settings / Profile", icon: Settings, href: "/settings" },
       ],
     },
