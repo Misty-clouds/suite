@@ -35,7 +35,6 @@ A guided onboarding/setup flow gets a business running fast: branding, bank conn
 ```
 suite/
 ├── apps/
-│   ├── landing/        Marketing site (Next.js)
 │   ├── web/            Dashboard app (Next.js)
 │   ├── admin/          Admin panel (Next.js)
 │   ├── api/            REST API (NestJS)
@@ -85,7 +84,6 @@ Copy the example env files for each app you want to run:
 
 ```bash
 cp apps/web/.env.example apps/web/.env
-cp apps/landing/.env.example apps/landing/.env
 cp apps/admin/.env.example apps/admin/.env
 cp apps/api/.env.example apps/api/.env
 ```
@@ -98,7 +96,6 @@ pnpm dev
 
 # Or start a specific app
 pnpm --filter @suite/web dev       # Dashboard on :3001
-pnpm --filter @suite/landing dev   # Landing on :3000
 pnpm --filter @suite/admin dev     # Admin on :3002
 pnpm --filter @suite/api dev       # API on :5000
 ```
@@ -137,7 +134,6 @@ docker compose up --build -d
 
 This starts:
 - **Nginx** on port 80, routing subdomains to the correct container
-- **Landing** → `suite.cloudstech.org`
 - **Web** → `app.suite.cloudstech.org`
 - **Admin** → `cp.suite.cloudstech.org`
 - **API** → `api.suite.cloudstech.org`
@@ -205,7 +201,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 <type>(<scope>): <description>
 
 Types: feat, fix, docs, style, refactor, test, chore
-Scopes: web, landing, admin, api, ui, types, utils, sdk, config, infra
+Scopes: web, admin, api, ui, types, utils, sdk, config, infra
 ```
 
 Examples:

@@ -19,8 +19,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - app: landing
-            dockerfile: infra/docker/Dockerfile.landing
           - app: web
             dockerfile: infra/docker/Dockerfile.web
           - app: admin
