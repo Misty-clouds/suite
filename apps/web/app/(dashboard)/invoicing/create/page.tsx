@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import type { Client, CreateInvoiceInput } from "@suite/types";
 import AddClientModal from "@/components/AddClientModal";
+import { Logo } from "@/components/Logo";
 import { clientsApi } from "@/lib/clients-api";
 import { invoicesApi } from "@/lib/invoices-api";
 
@@ -549,12 +549,7 @@ export default function CreateInvoicePage() {
                   </div>
                 </div>
                 <div className="absolute bottom-8 left-8 opacity-70">
-                  <Image
-                    src="/assets/images/logo-no-bg.png"
-                    width={90}
-                    height={30}
-                    alt="Logo"
-                  />
+                  <Logo size={24} />
                 </div>
               </>
             ) : (
@@ -667,12 +662,7 @@ export default function CreateInvoicePage() {
                 </div>
 
                 <div className="mt-14">
-                  <Image
-                    src="/assets/images/logo-no-bg.png"
-                    width={95}
-                    height={32}
-                    alt="Logo"
-                  />
+                  <Logo size={26} />
                 </div>
               </div>
             )}

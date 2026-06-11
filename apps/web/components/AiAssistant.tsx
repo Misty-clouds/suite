@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Sparkles, X, ArrowUp, Bot } from "lucide-react";
 import { useAuth } from "./auth/AuthProvider";
 import { agentApi } from "@/lib/agent-api";
+import { Logo } from "./Logo";
 
 interface Message {
   id: number;
@@ -197,13 +197,7 @@ export default function AiAssistant() {
         {open ? (
           <X size={22} className="relative text-app-text-main" />
         ) : (
-          <Image
-            src="/assets/images/logo-no-bg.png"
-            alt="Suite AI"
-            width={34}
-            height={34}
-            className="relative object-contain"
-          />
+          <Logo showText={false} size={24} className="relative" />
         )}
 
         {/* sparkle badge */}

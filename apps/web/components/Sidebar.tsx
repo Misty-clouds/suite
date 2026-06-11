@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useAuth } from "./auth/AuthProvider";
+import { Logo } from "./Logo";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -59,15 +60,7 @@ export default function Sidebar() {
           collapsed && !isMobile ? "justify-center" : "justify-between"
         }`}
       >
-        {(!collapsed || isMobile) && (
-          <Image
-            src="/assets/images/logo-no-bg.png"
-            alt="Logo"
-            width={80}
-            height={80}
-            className="object-contain"
-          />
-        )}
+        {(!collapsed || isMobile) && <Logo size={30} />}
 
         {/* Desktop collapse toggle */}
         {!isMobile && (
