@@ -19,6 +19,7 @@ import { ToolsModule } from './tools/tools.module';
 import { PlaidModule } from './plaid/plaid.module';
 import { FivetranModule } from './fivetran/fivetran.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TaxModule } from './tax/tax.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { DocumentsModule } from './documents/documents.module';
     PlaidModule,
     FivetranModule,
     DocumentsModule,
+    TaxModule,
   ],
   controllers: [AppController],
   providers: [

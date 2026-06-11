@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  Check, 
-  ChevronLeft, 
-  Building2, 
-  User, 
+import { useEffect, useState } from "react";
+import {
+  Check,
+  ChevronLeft,
+  Building2,
+  User,
   Info,
   Calendar,
   Upload,
   ChevronDown,
-  Star
+  Star,
+  Loader2,
 } from "lucide-react";
+import { taxApi } from "@/lib/tax-api";
 
 type TaxStep = 1 | 2 | 3 | 4 | 5;
 
@@ -61,12 +63,41 @@ export function TaxTab() {
     unremittedWht: "",
   });
 
-  const nextStep = () => {
-    if (step < 5) setStep((s) => (s + 1) as TaxStep);
-  };
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Prefill from any previously-saved tax profile.
+  useEffect(() => {
+    taxApi
+      .get()
+      .then((data) => {
+        if (data) setFormData((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => {
+        /* no saved profile yet */
+      });
+  }, []);
 
   const prevStep = () => {
     if (step > 1) setStep((s) => (s - 1) as TaxStep);
+  };
+
+  const handleNext = async () => {
+    if (step < 5) {
+      setStep((s) => (s + 1) as TaxStep);
+      return;
+    }
+    // Final step → persist the tax profile.
+    setSaving(true);
+    try {
+      await taxApi.save(formData);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      /* surfaced via button state */
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -144,11 +175,20 @@ export function TaxTab() {
         
         <div className="flex items-center gap-6">
           <span className="text-app-text-muted text-sm font-medium">Step {step} of 5</span>
-          <button 
-            onClick={nextStep}
-            className="px-8 py-2.5 rounded-xl bg-brand-primary text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-brand-primary/20"
+          <button
+            onClick={handleNext}
+            disabled={saving}
+            className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-brand-primary text-white font-medium hover:opacity-90 transition-opacity shadow-lg shadow-brand-primary/20 disabled:opacity-60"
           >
-            {step === 5 ? "Finish setup" : "Continue"}
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            {saved && !saving && <Check size={16} />}
+            {step === 5
+              ? saving
+                ? "Saving…"
+                : saved
+                  ? "Saved"
+                  : "Finish setup"
+              : "Continue"}
           </button>
         </div>
       </div>
@@ -280,6 +320,7 @@ function Step2({ formData, setFormData }: StepProps) {
           <input 
             type="text" 
             value={formData.tin}
+            onChange={(e) => setFormData({ ...formData, tin: e.target.value })}
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="e.g. 1234567-0009"
           />
@@ -290,6 +331,9 @@ function Step2({ formData, setFormData }: StepProps) {
           <input 
             type="text" 
             value={formData.firsUsername}
+            onChange={(e) =>
+              setFormData({ ...formData, firsUsername: e.target.value })
+            }
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="Enter FIRS username"
           />
@@ -331,8 +375,12 @@ function Step2({ formData, setFormData }: StepProps) {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-app-text-light">VAT registration number</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
+              value={formData.vatNumber}
+              onChange={(e) =>
+                setFormData({ ...formData, vatNumber: e.target.value })
+              }
               className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
               placeholder="e.g. 1234567-0009"
             />
@@ -340,10 +388,13 @@ function Step2({ formData, setFormData }: StepProps) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-app-text-light">VAT registration date</label>
             <div className="relative">
-              <input 
-                type="text" 
-                className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
-                placeholder="mm/dd/yyyy"
+              <input
+                type="date"
+                value={formData.vatDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, vatDate: e.target.value })
+                }
+                className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors [color-scheme:dark]"
               />
               <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-app-text-muted pointer-events-none" size={18} />
             </div>
@@ -527,16 +578,26 @@ function Step4({ formData, setFormData }: StepProps) {
           <div className="grid grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-app-text-light">Number of employees</label>
-              <input 
-                type="text" 
-                className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
+              <input
+                type="number"
+                min="0"
+                value={formData.numEmployees}
+                onChange={(e) =>
+                  setFormData({ ...formData, numEmployees: e.target.value })
+                }
+                className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="e.g. 8"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-app-text-light">Monthly payroll total</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
+                inputMode="numeric"
+                value={formData.monthlyPayroll}
+                onChange={(e) =>
+                  setFormData({ ...formData, monthlyPayroll: e.target.value })
+                }
                 className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
                 placeholder="e.g. ₦4,500,000"
               />
@@ -686,8 +747,13 @@ function Step5({ formData, setFormData }: StepProps) {
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="text-sm font-medium text-app-text-light">Carry-forward losses (if any)</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
+            inputMode="numeric"
+            value={formData.carryForwardLosses}
+            onChange={(e) =>
+              setFormData({ ...formData, carryForwardLosses: e.target.value })
+            }
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="e.g. ₦4,500"
           />
@@ -695,8 +761,13 @@ function Step5({ formData, setFormData }: StepProps) {
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-app-text-light">Unremitted WHT credits (if any)</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
+            inputMode="numeric"
+            value={formData.unremittedWht}
+            onChange={(e) =>
+              setFormData({ ...formData, unremittedWht: e.target.value })
+            }
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="e.g. ₦4,500"
           />
