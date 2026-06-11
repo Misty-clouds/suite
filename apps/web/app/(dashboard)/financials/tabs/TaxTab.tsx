@@ -28,7 +28,7 @@ export function TaxTab() {
   const [step, setStep] = useState<TaxStep>(1);
   const [formData, setFormData] = useState<TaxFormData>({
     // Step 1: Business
-    businessName: "Cloudstech LTD",
+    businessName: "Suite LTD",
     rcNumber: "",
     businessStructure: "Private Ltd",
     stateOfOperation: "Lagos",
@@ -53,7 +53,7 @@ export function TaxTab() {
     numEmployees: "",
     monthlyPayroll: "",
     statePayrollTax: "Lagos - 1%",
-    payrollProvider: "Cloudstech Payroll",
+    payrollProvider: "Suite Payroll",
 
     // Step 5: Prior Filings
     filedBefore: "Yes",
@@ -216,7 +216,7 @@ function Step1({ formData, setFormData }: StepProps) {
             value={formData.businessName}
             onChange={(e) => setFormData({...formData, businessName: e.target.value})}
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
-            placeholder="Cloudstech LTD"
+            placeholder="Suite LTD"
           />
         </div>
         <div className="space-y-2">
@@ -337,7 +337,7 @@ function Step2({ formData, setFormData }: StepProps) {
             className="w-full bg-app-card border border-app-border rounded-xl px-4 py-3 text-app-text-main focus:border-brand-primary outline-none transition-colors"
             placeholder="Enter FIRS username"
           />
-          <p className="text-[10px] text-app-text-muted">Enables direct filing from Cloudstech in the future.</p>
+          <p className="text-[10px] text-app-text-muted">Enables direct filing from Suite in the future.</p>
         </div>
       </div>
 
@@ -617,7 +617,7 @@ function Step4({ formData, setFormData }: StepProps) {
             <label className="text-sm font-medium text-app-text-light">Payroll provider (optional)</label>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { id: "Cloudstech Payroll", label: "Cloudstech Payroll", desc: "Auto-sync, no extra setup needed" },
+                { id: "Suite Payroll", label: "Suite Payroll", desc: "Auto-sync, no extra setup needed" },
                 { id: "External / Manual", label: "External / Manual", desc: "Upload payslips each month" },
               ].map((item) => (
                 <div 

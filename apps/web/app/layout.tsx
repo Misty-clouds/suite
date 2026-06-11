@@ -10,7 +10,7 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Suite - Cloudstech",
+  title: "Suite",
   description: "",
 };
 

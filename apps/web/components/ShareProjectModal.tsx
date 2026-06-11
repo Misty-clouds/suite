@@ -13,19 +13,19 @@ export default function ShareProjectModal({
 
   const invitedUsers = [
     {
-      name: "Cloudstech",
+      name: "Suite",
       email: "clouds@gmail.com",
       initial: "C",
       color: "bg-blue-600",
     },
     {
-      name: "Cloudstech",
+      name: "Suite",
       email: "clouds@gmail.com",
       initial: "C",
       color: "bg-blue-600",
     },
     {
-      name: "Cloudstech",
+      name: "Suite",
       email: "clouds@gmail.com",
       initial: "C",
       color: "bg-blue-600",

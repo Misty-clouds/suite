@@ -235,7 +235,7 @@ export default function Sidebar() {
         )}
         {(!collapsed || isMobile) && (
           <div className="mt-2 text-center text-xs text-zinc-600">
-            @2025cloudstech
+            @2025 Suite
           </div>
         )}
       </div>
