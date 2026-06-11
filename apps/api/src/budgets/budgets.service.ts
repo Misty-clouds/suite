@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
+import { PlaidService } from '../plaid/plaid.service';
 import { Budget, BudgetDocument } from './schemas/budget.schema';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
@@ -13,7 +14,21 @@ export class BudgetsService {
   constructor(
     @InjectModel(Budget.name)
     private readonly budgetModel: Model<BudgetDocument>,
+    private readonly plaid: PlaidService,
   ) {}
+
+  /** Total outflow spend per (lowercased) category from the user's transactions. */
+  private async spendByCategory(owner: string): Promise<Map<string, number>> {
+    const txns = await this.plaid.listTransactions(owner, undefined, 1000);
+    const map = new Map<string, number>();
+    for (const t of txns) {
+      if (t.direction !== 'outflow') continue;
+      const cat = (t.aiCategory || t.category?.[0] || '').toLowerCase();
+      if (!cat) continue;
+      map.set(cat, round2((map.get(cat) ?? 0) + t.amount));
+    }
+    return map;
+  }
 
   create(owner: string, dto: CreateBudgetDto): Promise<BudgetDocument> {
     return this.budgetModel.create({
@@ -30,12 +45,25 @@ export class BudgetsService {
     });
   }
 
-  findAll(owner: string, category?: string): Promise<BudgetDocument[]> {
+  async findAll(owner: string, category?: string): Promise<BudgetDocument[]> {
     const filter: FilterQuery<BudgetDocument> = {
       owner: new Types.ObjectId(owner),
     };
     if (category) filter.category = category;
-    return this.budgetModel.find(filter).sort({ createdAt: -1 }).exec();
+    const budgets = await this.budgetModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // Reflect real spending: override `spent` with transaction spend for the
+    // matching category (virtuals recompute remaining/progress/status). Falls
+    // back to any manually-recorded spend when there are no matching txns.
+    const spend = await this.spendByCategory(owner);
+    for (const b of budgets) {
+      const txnSpend = spend.get(b.category.toLowerCase());
+      if (txnSpend && txnSpend > 0) b.spent = txnSpend;
+    }
+    return budgets;
   }
 
   async findOne(owner: string, id: string): Promise<BudgetDocument> {

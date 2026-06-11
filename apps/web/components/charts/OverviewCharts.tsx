@@ -17,13 +17,21 @@ import { ChartTooltip } from "./ChartTooltip";
 import { GaugeChart } from "./GaugeChart";
 import { OverviewEmptyState } from "./OverviewEmptyState";
 import { StatsCard } from "@/components/StatsCard";
+import type { Transaction } from "@suite/types";
 import { plaidApi } from "@/lib/plaid-api";
 import {
   revenueExpensesData,
   profitTrendData,
   expenseBreakdown,
-  statsCards,
 } from "@/lib/chartData";
+
+const fmtUsd = (n: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(n);
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export function OverviewCharts({
   onConnectBank,
@@ -32,23 +40,27 @@ export function OverviewCharts({
   onConnectBank?: () => void;
   onAddTransaction?: () => void;
 } = {}) {
-  const [hasData, setHasData] = useState<boolean | null>(null);
+  const [txns, setTxns] = useState<Transaction[] | null>(null);
+  const [hasAccounts, setHasAccounts] = useState(false);
 
   useEffect(() => {
     let active = true;
     Promise.all([plaidApi.listTransactions(), plaidApi.listAccounts()])
-      .then(([txns, accounts]) => {
-        if (active) setHasData(txns.length > 0 || accounts.length > 0);
+      .then(([t, accounts]) => {
+        if (active) {
+          setTxns(t);
+          setHasAccounts(accounts.length > 0);
+        }
       })
       .catch(() => {
-        if (active) setHasData(false);
+        if (active) setTxns([]);
       });
     return () => {
       active = false;
     };
   }, []);
 
-  if (hasData === null) {
+  if (txns === null) {
     return (
       <div className="flex items-center justify-center py-24 text-zinc-600">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -56,7 +68,7 @@ export function OverviewCharts({
     );
   }
 
-  if (!hasData) {
+  if (txns.length === 0 && !hasAccounts) {
     return (
       <OverviewEmptyState
         onConnectBank={onConnectBank}
@@ -65,11 +77,46 @@ export function OverviewCharts({
     );
   }
 
+  // ── Real figures computed from the user's transactions ──
+  const inflow = txns.filter((t) => t.direction === "inflow");
+  const outflow = txns.filter((t) => t.direction === "outflow");
+  const revenue = round2(inflow.reduce((s, t) => s + t.amount, 0));
+  const expenses = round2(outflow.reduce((s, t) => s + t.amount, 0));
+  const net = round2(revenue - expenses);
+  const burn = Math.max(0, round2(expenses - revenue));
+  const marginPct = revenue > 0 ? Math.round((net / revenue) * 100) : 0;
+  const realStats = [
+    {
+      icon: "$",
+      title: "Total revenue",
+      value: fmtUsd(revenue),
+      change: `${marginPct >= 0 ? "+" : ""}${marginPct}%`,
+      trend: (net >= 0 ? "up" : "down") as "up" | "down",
+      subtext: `${inflow.length} income transaction${inflow.length === 1 ? "" : "s"}`,
+    },
+    {
+      icon: "$",
+      title: "Total expenses",
+      value: fmtUsd(expenses),
+      change: revenue > 0 ? `${Math.round((expenses / revenue) * 100)}%` : "—",
+      trend: "down" as const,
+      subtext: `${outflow.length} expense transaction${outflow.length === 1 ? "" : "s"}`,
+    },
+    {
+      icon: "$",
+      title: "Burn rate",
+      value: fmtUsd(burn),
+      change: net >= 0 ? "positive" : "negative",
+      trend: (net >= 0 ? "up" : "down") as "up" | "down",
+      subtext: net >= 0 ? "Cash-flow positive" : "Net monthly burn",
+    },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {statsCards.map((stat, index) => (
+        {realStats.map((stat, index) => (
           <StatsCard key={index} {...stat} />
         ))}
       </div>
